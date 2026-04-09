@@ -1,0 +1,110 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: users
+    // Document ID: userId (UID)
+    // Fields:
+    //   - uid: string (required)
+    //   - email: string (required)
+    //   - displayName: string
+    //   - photoURL: string
+    //   - role: string (required, 'customer' or 'provider')
+    //   - phoneNumber: string
+    //   - rating: number
+    //   - reviewCount: number
+    //   - isOnline: boolean
+    //   - location: map { lat: number, lng: number }
+    //   - serviceCategories: list of strings
+    //
+    // Collection: requests
+    // Document ID: requestId
+    // Fields:
+    //   - customerId: string (required)
+    //   - providerId: string
+    //   - category: string (required)
+    //   - status: string (required)
+    //   - location: map { lat: number, lng: number }
+    //   - address: string
+    //   - createdAt: timestamp (required)
+    //   - acceptedAt: timestamp
+    //   - completedAt: timestamp
+    //   - price: number
+    //   - paymentStatus: string
+    //   - paymentMethod: string
+    //   - rating: number
+    //   - review: string
+    //
+    // Collection: requests/{requestId}/messages
+    // Fields:
+    //   - senderId: string (required)
+    //   - text: string (required)
+    //   - timestamp: timestamp (required)
+    //
+    // ===============================================================
+
+    // Helper Functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() && 
+        (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' ||
+         (request.auth.token.email == "nihalak209@gmail.com" && request.auth.token.email_verified == true));
+    }
+
+    function isValidUser(data) {
+      return data.keys().hasAll(['uid', 'email', 'role']) &&
+             data.uid == request.auth.uid &&
+             data.role in ['customer', 'provider'] &&
+             data.email is string &&
+             (!('displayName' in data) || (data.displayName is string && data.displayName.size() < 100)) &&
+             (!('phoneNumber' in data) || (data.phoneNumber is string && data.phoneNumber.size() < 20));
+    }
+
+    function isValidRequest(data) {
+      return data.keys().hasAll(['customerId', 'category', 'status', 'location', 'createdAt']) &&
+             data.customerId == request.auth.uid &&
+             data.status in ['pending', 'accepted', 'in-progress', 'completed', 'cancelled'] &&
+             data.category in ['tyre', 'towing', 'fuel', 'mechanic'];
+    }
+
+    function isValidMessage(data) {
+      return data.keys().hasAll(['senderId', 'text', 'timestamp']) &&
+             data.senderId == request.auth.uid &&
+             data.text is string && data.text.size() < 1000;
+    }
+
+    // Rules
+    match /users/{userId} {
+      allow read: if isAuthenticated();
+      allow create: if isOwner(userId) && isValidUser(request.resource.data);
+      allow update: if (isOwner(userId) && isValidUser(request.resource.data) && request.resource.data.role == resource.data.role) || isAdmin();
+    }
+
+    match /requests/{requestId} {
+      allow read: if isAuthenticated() && (request.auth.uid == resource.data.customerId || request.auth.uid == resource.data.providerId || resource.data.status == 'pending');
+      allow create: if isAuthenticated() && isValidRequest(request.resource.data);
+      allow update: if isAuthenticated() && (
+        // Customer can cancel or rate
+        (request.auth.uid == resource.data.customerId && request.resource.data.customerId == resource.data.customerId) ||
+        // Provider can accept or update status
+        (request.auth.uid == request.resource.data.providerId || request.auth.uid == resource.data.providerId)
+      );
+      
+      match /messages/{messageId} {
+        allow read: if isAuthenticated() && (request.auth.uid == get(/databases/$(database)/documents/requests/$(requestId)).data.customerId || request.auth.uid == get(/databases/$(database)/documents/requests/$(requestId)).data.providerId);
+        allow create: if isAuthenticated() && isValidMessage(request.resource.data);
+      }
+    }
+  }
+}

@@ -1,0 +1,71 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "Application user (customer or provider)",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "displayName": { "type": "string" },
+        "photoURL": { "type": "string" },
+        "role": { "type": "string", "enum": ["customer", "provider"] },
+        "phoneNumber": { "type": "string" },
+        "rating": { "type": "number" },
+        "reviewCount": { "type": "number" },
+        "isOnline": { "type": "boolean" },
+        "location": { "type": "object" },
+        "serviceCategories": { "type": "array" }
+      },
+      "required": ["uid", "email", "role"]
+    },
+    "ServiceRequest": {
+      "title": "Service Request",
+      "description": "A roadside assistance request",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "customerId": { "type": "string" },
+        "providerId": { "type": "string" },
+        "category": { "type": "string", "enum": ["tyre", "towing", "fuel", "mechanic"] },
+        "status": { "type": "string", "enum": ["pending", "accepted", "in-progress", "completed", "cancelled"] },
+        "location": { "type": "object" },
+        "address": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "acceptedAt": { "type": "string", "format": "date-time" },
+        "completedAt": { "type": "string", "format": "date-time" },
+        "price": { "type": "number" },
+        "paymentStatus": { "type": "string", "enum": ["pending", "paid"] },
+        "paymentMethod": { "type": "string", "enum": ["upi", "card", "cash"] },
+        "rating": { "type": "number" },
+        "review": { "type": "string" }
+      },
+      "required": ["customerId", "category", "status", "location", "createdAt"]
+    },
+    "ChatMessage": {
+      "title": "Chat Message",
+      "description": "Message in a service request chat",
+      "type": "object",
+      "properties": {
+        "senderId": { "type": "string" },
+        "text": { "type": "string" },
+        "timestamp": { "type": "string", "format": "date-time" }
+      },
+      "required": ["senderId", "text", "timestamp"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "User profiles"
+    },
+    "/requests/{requestId}": {
+      "schema": "ServiceRequest",
+      "description": "Assistance requests"
+    },
+    "/requests/{requestId}/messages/{messageId}": {
+      "schema": "ChatMessage",
+      "description": "Chat messages for a request"
+    }
+  }
+}

@@ -1,0 +1,5 @@
+{
+  "name": "Road Sahayi",
+  "description": "Fast, reliable roadside emergency assistance platform with real-time tracking, SOS, and service provider matching. Powered by A4K.",
+  "requestFramePermissions": ["geolocation"]
+}
